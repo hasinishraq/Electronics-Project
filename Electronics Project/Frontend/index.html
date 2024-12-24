@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rover Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Robot Dashboard</h1>
+        </header>
+        
+        <main>
+            <aside class="controls">
+                <h2>Controls</h2>
+                <div class="controls-grid">
+                    <button onclick="sendCommand('forward')" class="btn btn-forward">Forward</button>
+                    <button onclick="sendCommand('left')" class="btn btn-left">Left</button>
+                    <button onclick="sendCommand('stop')" class="btn btn-stop">Stop</button>
+                    <button onclick="sendCommand('right')" class="btn btn-right">Right</button>
+                    <button onclick="sendCommand('backward')" class="btn btn-backward">Backward</button>
+                </div>
+            </aside>
+            
+            <section class="video-feed">
+                <h2>Live Camera Feed</h2>
+                <div class="video-container">
+                    <img id="video" src="/video_feed" alt="Video Feed">
+                </div>
+            </section>
+            
+            <section class="sensor-data">
+                <h2>Sensor Data</h2>
+                <div class="sensor-cards">
+                    <div class="sensor-card">
+                        <h3>Temperature</h3>
+                        <p><span id="temperature">--</span>°C</p>
+                    </div>
+                    <div class="sensor-card">
+                        <h3>Gas Level</h3>
+                        <p><span id="gas">--</span></p>
+                    </div>
+                    <div class="sensor-card">
+                        <h3>Sound</h3>
+                        <p><span id="sound">--</span></p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="script/script.js"></script>
+</body>
+</html>
