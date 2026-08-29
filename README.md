@@ -17,12 +17,40 @@ A smart autonomous robot that **follows a human target** and can be manually ove
 
 ## 🔩 Hardware Components
 
-| Component | Details |
-|-----------|---------|
-| 🖥️ **Raspberry Pi 4** | 8 GB RAM — main compute unit running the Flask server & vision pipeline |
-| 📷 **Pi Camera Module** | Captures live video feed streamed to the dashboard |
-| ⚙️ **DC Motors** | Drive wheels for forward, backward, left, and right movement |
-| 🔌 **Motor Driver** | Controls motor speed and direction from Raspberry Pi GPIO |
+### 🧠 Computing Units
+
+| Component | Role |
+|-----------|------|
+| 🖥️ **Raspberry Pi 4** (8 GB RAM) | Main compute unit — runs Flask server, video stream & human-following logic |
+| 🔵 **Arduino** | Microcontroller — handles low-level sensor reading & motor PWM signals |
+
+### 📷 Camera
+
+| Component | Role |
+|-----------|------|
+| 📷 **Raspberry Pi Camera Module** | Captures live video feed streamed to the web dashboard |
+
+### ⚙️ Actuation
+
+| Component | Role |
+|-----------|------|
+| ⚙️ **DC Motors** | Drive wheels for movement in all directions |
+| 🔌 **Motor Driver** (e.g. L298N / L293D) | Controls motor speed & direction via PWM from Arduino/Pi GPIO |
+
+### 📡 Sensors
+
+| Sensor | Measurement | Connected To |
+|--------|-------------|--------------|
+| 🌡️ **DHT11 / DHT22** | Temperature & Humidity | Arduino |
+| 💨 **MQ-2 / MQ-135** | Gas / Air Quality | Arduino |
+| 🔊 **Sound Sensor Module** | Ambient Sound Level | Arduino |
+| 📏 **HC-SR04 Ultrasonic Sensor** | Distance / Obstacle Detection | Arduino |
+| 🔴 **IR Sensor Module** | Infrared human/object detection | Arduino |
+
+### 🔋 Power
+
+| Component | Role |
+|-----------|------|
 | 🔋 **LiPo Battery** | Powers the entire system onboard for untethered operation |
 
 ---
@@ -33,7 +61,7 @@ A smart autonomous robot that **follows a human target** and can be manually ove
 |-------|-----------|
 | Backend | Python · Flask |
 | Frontend | HTML · CSS · Vanilla JavaScript |
-| Communication | REST API (HTTP POST/GET) |
+| Communication | REST API (HTTP POST/GET) · Serial (Arduino ↔ Raspberry Pi) |
 | Fonts | Google Fonts – Poppins |
 
 ---
@@ -54,11 +82,41 @@ Electronics-Project/
 
 ---
 
+## 🔗 System Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Raspberry Pi 4                        │
+│  ┌──────────────┐    ┌────────────────────────────────┐ │
+│  │  Pi Camera   │───▶│  Flask Server (server.py)      │ │
+│  │  Module      │    │  - Serves web dashboard         │ │
+│  └──────────────┘    │  - Streams video feed           │ │
+│                      │  - Handles /control commands    │ │
+│                      └──────────────┬─────────────────┘ │
+└─────────────────────────────────────┼─────────────────── ┘
+                                      │ USB Serial
+                              ┌───────▼──────────┐
+                              │    Arduino        │
+                              │  - Reads sensors  │
+                              │  - Drives motors  │
+                              └───────┬───────────┘
+                    ┌─────────────────┼──────────────────┐
+                    ▼                 ▼                   ▼
+             ┌──────────┐    ┌──────────────┐    ┌──────────────┐
+             │  DHT11   │    │  HC-SR04     │    │ Motor Driver │
+             │  MQ Gas  │    │  IR Sensor   │    │  + DC Motors │
+             │  Sound   │    │  Ultrasonic  │    │              │
+             └──────────┘    └──────────────┘    └──────────────┘
+```
+
+---
+
 ## 🚀 Getting Started
 
 ### Prerequisites
 
 - Raspberry Pi 4 (8 GB) running Raspberry Pi OS
+- Arduino IDE (for flashing Arduino firmware)
 - Python 3.8+
 - pip
 
@@ -70,9 +128,12 @@ git clone https://github.com/hasinishraq/Electronics-Project.git
 cd Electronics-Project
 
 # 2. Install Python dependencies
-pip install flask
+pip install flask pyserial
 
-# 3. Run the server
+# 3. Flash the Arduino sketch (open in Arduino IDE)
+#    arduino/robot_sensors/robot_sensors.ino
+
+# 4. Run the Flask server on Raspberry Pi
 cd backend
 python server.py
 ```
@@ -131,7 +192,7 @@ Returns the live MJPEG camera stream from the Pi Camera Module.
 
 ### `GET /sensor_data`
 
-Returns real-time sensor readings (polled every 1 second by the frontend).
+Returns real-time sensor readings from Arduino (polled every 1 second by the frontend).
 
 **Response:**
 ```json
@@ -146,25 +207,35 @@ Returns real-time sensor readings (polled every 1 second by the frontend).
 
 ## 📡 Sensor Data
 
-| Sensor | Description |
-|--------|-------------|
-| 🌡️ Temperature | Ambient temperature in °C |
-| 💨 Gas Level | Air quality / gas concentration reading |
-| 🔊 Sound | Ambient sound level |
+| Sensor | Measurement | Description |
+|--------|-------------|-------------|
+| 🌡️ DHT11/DHT22 | Temperature (°C) | Ambient temperature & humidity |
+| 💨 MQ-2/MQ-135 | Gas Level | Air quality / gas concentration |
+| 🔊 Sound Module | Sound Level | Ambient noise detection |
+| 📏 HC-SR04 | Distance (cm) | Obstacle detection & avoidance |
+| 🔴 IR Sensor | Presence | Infrared human/object detection |
 
 ---
 
 ## 🔧 Customization
 
-To integrate your actual robot hardware, modify the command handler in `backend/server.py`:
+To integrate your hardware, modify the command handler in `backend/server.py`:
 
 ```python
-if command == 'forward':
-    # TODO: Add your GPIO motor driver logic here
-    pass
-```
+import serial
+ser = serial.Serial('/dev/ttyUSB0', 9600)  # Connect to Arduino
 
-Similarly, update the `/sensor_data` and `/video_feed` routes to pull from your physical sensors and Pi Camera Module.
+if command == 'forward':
+    ser.write(b'F')   # Send command byte to Arduino
+elif command == 'backward':
+    ser.write(b'B')
+elif command == 'left':
+    ser.write(b'L')
+elif command == 'right':
+    ser.write(b'R')
+elif command == 'stop':
+    ser.write(b'S')
+```
 
 ---
 
@@ -172,9 +243,10 @@ Similarly, update the `/sensor_data` and `/video_feed` routes to pull from your 
 
 - [ ] Integrate computer vision for autonomous human detection (OpenCV / YOLO)
 - [ ] Add WebSocket support for lower-latency commands
-- [ ] Implement obstacle avoidance
+- [ ] Implement ultrasonic-based obstacle avoidance
 - [ ] Add authentication to the dashboard
 - [ ] Log sensor data to a database for historical analysis
+- [ ] Add GPS module for outdoor tracking
 
 ---
 
@@ -189,3 +261,4 @@ This project is open-source and available under the [MIT License](LICENSE).
 - [Flask](https://flask.palletsprojects.com/) — Lightweight Python web framework
 - [Google Fonts – Poppins](https://fonts.google.com/specimen/Poppins) — Clean, modern typography
 - [Raspberry Pi Foundation](https://www.raspberrypi.com/) — Single-board computer platform
+- [Arduino](https://www.arduino.cc/) — Open-source microcontroller platform
